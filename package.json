@@ -1,0 +1,28 @@
+{
+  "name": "bitlend-opnet",
+  "version": "1.0.0",
+  "description": "DeFi Lending Protocol on Bitcoin L1 via OP_NET",
+  "private": true,
+  "scripts": {
+    "dev": "serve public -p 3000",
+    "build": "echo 'Static site — no build needed' && exit 0",
+    "start": "serve public -p 3000",
+    "preview": "serve public -p 4000"
+  },
+  "dependencies": {
+    "serve": "^14.2.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "bitcoin",
+    "defi",
+    "opnet",
+    "lending",
+    "op20",
+    "btc"
+  ],
+  "author": "BitLend",
+  "license": "MIT"
+}
