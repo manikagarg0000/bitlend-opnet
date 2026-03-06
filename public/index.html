@@ -1,0 +1,1842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BitLend — DeFi Lending on Bitcoin L1 via OP_NET</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --white: #ffffff;
+    --off-white: #f8f8f8;
+    --light: #f2f2f2;
+    --border: #e5e5e5;
+    --muted: #999;
+    --text: #111;
+    --grad-main: linear-gradient(135deg, #e63946, #f4a261, #2a9d8f, #457b9d, #7209b7);
+    --grad-hot: linear-gradient(90deg, #e63946, #f4a261, #e9c46a);
+    --grad-cool: linear-gradient(90deg, #457b9d, #2a9d8f, #52b788);
+    --grad-purple: linear-gradient(90deg, #7209b7, #3a0ca3, #4361ee);
+    --grad-full: linear-gradient(90deg, #e63946, #f4a261, #e9c46a, #2a9d8f, #457b9d, #7209b7);
+    --red: #e63946;
+    --orange: #f4a261;
+    --yellow: #e9c46a;
+    --teal: #2a9d8f;
+    --blue: #457b9d;
+    --purple: #7209b7;
+    --green: #52b788;
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
+    --shadow-md: 0 8px 32px rgba(0,0,0,0.09);
+    --shadow-lg: 0 20px 60px rgba(0,0,0,0.12);
+    --radius: 16px;
+    --radius-sm: 10px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: #ffffff;
+    color: var(--text);
+    overflow-x: hidden;
+  }
+
+  /* GRADIENT TEXT */
+  .grad { background: var(--grad-main); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .grad-hot { background: var(--grad-hot); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .grad-cool { background: var(--grad-cool); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .grad-purple { background: var(--grad-purple); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .grad-full { background: var(--grad-full); background-size: 200%; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; animation: shimmer 4s linear infinite; }
+
+  @keyframes shimmer { 0%{background-position:0%} 100%{background-position:200%} }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes spin { to{transform:rotate(360deg)} }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+  @keyframes countUp { from{transform:scaleX(0)} to{transform:scaleX(1)} }
+  @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+
+  /* NAVBAR */
+  nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(255,255,255,0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    height: 64px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  .nav-logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800; font-size: 22px;
+    display: flex; align-items: center; gap: 10px;
+  }
+
+  .nav-logo .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--grad-main);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  .nav-links {
+    display: flex; align-items: center; gap: 8px;
+    list-style: none;
+  }
+
+  .nav-links a {
+    font-size: 14px; font-weight: 500; color: #444;
+    text-decoration: none; padding: 6px 14px; border-radius: 8px;
+    transition: all 0.2s;
+  }
+
+  .nav-links a:hover { background: var(--light); color: var(--text); }
+
+  .nav-right { display: flex; align-items: center; gap: 12px; }
+
+  .network-badge {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px; font-weight: 700;
+    padding: 4px 10px; border-radius: 20px;
+    background: linear-gradient(135deg, #e63946, #f4a261);
+    color: white; letter-spacing: 0.5px;
+  }
+
+  /* BUTTONS */
+  .btn {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700; border: none; cursor: pointer;
+    border-radius: 12px; transition: all 0.25s;
+    display: inline-flex; align-items: center; gap: 8px;
+    text-decoration: none;
+  }
+
+  .btn-primary {
+    background: var(--grad-main);
+    color: white; font-size: 15px;
+    padding: 12px 28px;
+    box-shadow: 0 4px 20px rgba(230,57,70,0.3);
+  }
+  .btn-primary:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 8px 32px rgba(230,57,70,0.4); }
+
+  .btn-hero {
+    font-size: 18px; padding: 18px 44px;
+    background: var(--grad-full); background-size: 200%;
+    color: white; border-radius: 14px;
+    box-shadow: 0 8px 40px rgba(114,9,183,0.25);
+    animation: shimmer 4s linear infinite;
+  }
+  .btn-hero:hover { transform: translateY(-4px) scale(1.03); box-shadow: 0 16px 56px rgba(114,9,183,0.4); }
+
+  .btn-secondary {
+    background: transparent; color: var(--text);
+    border: 2px solid var(--border); font-size: 14px;
+    padding: 10px 22px;
+  }
+  .btn-secondary:hover { border-color: #aaa; background: var(--light); transform: translateY(-1px); }
+
+  .btn-teal {
+    background: var(--grad-cool); color: white; font-size: 14px;
+    padding: 10px 22px; box-shadow: 0 4px 16px rgba(42,157,143,0.3);
+  }
+  .btn-teal:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(42,157,143,0.45); }
+
+  .btn-red {
+    background: linear-gradient(135deg, #e63946, #c1121f); color: white;
+    font-size: 14px; padding: 10px 22px;
+  }
+  .btn-red:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(230,57,70,0.4); }
+
+  .btn-sm { font-size: 12px; padding: 7px 16px; border-radius: 8px; }
+
+  /* HERO */
+  .hero {
+    padding: 100px 24px 80px;
+    text-align: center;
+    max-width: 900px; margin: 0 auto;
+    animation: fadeUp 0.8s ease both;
+  }
+
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: linear-gradient(135deg, rgba(230,57,70,0.08), rgba(114,9,183,0.08));
+    border: 1px solid rgba(114,9,183,0.15);
+    padding: 6px 18px; border-radius: 20px; margin-bottom: 28px;
+    font-size: 13px; font-weight: 500; color: #555;
+  }
+
+  .hero-badge .live-dot {
+    width: 7px; height: 7px; border-radius: 50%; background: var(--green);
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+
+  .hero h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(40px, 7vw, 80px);
+    font-weight: 800; line-height: 1.05;
+    margin-bottom: 24px; letter-spacing: -2px;
+  }
+
+  .hero p {
+    font-size: clamp(16px, 2vw, 20px);
+    color: #555; max-width: 620px; margin: 0 auto 40px;
+    line-height: 1.65;
+  }
+
+  .hero-cta { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin-bottom: 60px; }
+
+  .hero-stats {
+    display: flex; gap: 40px; justify-content: center; flex-wrap: wrap;
+    padding-top: 40px; border-top: 1px solid var(--border);
+  }
+
+  .stat { text-align: center; }
+  .stat-val {
+    font-family: 'Syne', sans-serif; font-size: 28px; font-weight: 800;
+    margin-bottom: 4px;
+  }
+  .stat-label { font-size: 13px; color: var(--muted); font-weight: 500; }
+
+  /* FLOW SECTION */
+  .section { padding: 80px 24px; max-width: 1200px; margin: 0 auto; }
+  .section-title {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(28px, 4vw, 42px); font-weight: 800;
+    margin-bottom: 12px; letter-spacing: -1px;
+  }
+  .section-sub { color: var(--muted); font-size: 16px; margin-bottom: 48px; }
+
+  .flow-steps {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 0; position: relative;
+  }
+
+  .flow-step {
+    display: flex; flex-direction: column; align-items: center;
+    text-align: center; padding: 32px 16px; position: relative;
+    cursor: pointer; transition: all 0.2s;
+  }
+
+  .flow-step:not(:last-child)::after {
+    content: '→';
+    position: absolute; right: -12px; top: 50%; transform: translateY(-50%);
+    font-size: 20px; color: var(--muted); z-index: 1;
+  }
+
+  .flow-step:hover { transform: translateY(-4px); }
+
+  .flow-icon {
+    width: 64px; height: 64px; border-radius: 18px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px; margin-bottom: 14px;
+    box-shadow: var(--shadow-md);
+    transition: all 0.2s;
+  }
+
+  .flow-step:hover .flow-icon { transform: scale(1.1); }
+
+  .flow-step h3 { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 14px; margin-bottom: 6px; }
+  .flow-step p { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+  /* DASHBOARD */
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    grid-template-rows: auto auto;
+    gap: 20px;
+  }
+
+  @media(max-width: 900px) { .dashboard-grid { grid-template-columns: 1fr; } }
+
+  .card {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    padding: 24px;
+    transition: box-shadow 0.2s;
+  }
+
+  .card:hover { box-shadow: var(--shadow-md); }
+
+  .card-title {
+    font-family: 'Syne', sans-serif; font-weight: 700;
+    font-size: 13px; text-transform: uppercase; letter-spacing: 1px;
+    color: var(--muted); margin-bottom: 20px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  /* WALLET CARD */
+  .wallet-card { grid-column: 1; grid-row: 1 / 3; }
+
+  .wallet-status {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 16px; border-radius: var(--radius-sm);
+    background: var(--off-white); margin-bottom: 20px;
+  }
+
+  .wallet-avatar {
+    width: 40px; height: 40px; border-radius: 12px;
+    background: var(--grad-main); display: flex; align-items: center;
+    justify-content: center; font-size: 18px; flex-shrink: 0;
+  }
+
+  .wallet-addr { font-family: 'Space Mono', monospace; font-size: 12px; color: #555; }
+  .wallet-name { font-weight: 600; font-size: 14px; }
+
+  .balance-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
+
+  .balance-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 14px; border-radius: var(--radius-sm);
+    background: var(--off-white); border: 1px solid var(--border);
+  }
+
+  .balance-left { display: flex; align-items: center; gap: 10px; }
+
+  .token-icon {
+    width: 34px; height: 34px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: 700; flex-shrink: 0;
+  }
+
+  .token-name { font-weight: 600; font-size: 14px; }
+  .token-sub { font-size: 11px; color: var(--muted); }
+
+  .balance-amount { text-align: right; }
+  .balance-val { font-family: 'Space Mono', monospace; font-weight: 700; font-size: 14px; }
+  .balance-usd { font-size: 11px; color: var(--muted); }
+
+  /* HEALTH METER */
+  .health-meter {
+    margin-top: 20px; padding: 16px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: white;
+  }
+
+  .health-label { font-size: 12px; color: var(--muted); margin-bottom: 8px; font-weight: 500; }
+
+  .health-bar-bg {
+    height: 10px; border-radius: 5px; background: var(--light);
+    overflow: hidden; margin-bottom: 8px;
+  }
+
+  .health-bar {
+    height: 100%; border-radius: 5px;
+    background: linear-gradient(90deg, var(--green), var(--teal));
+    transition: width 0.8s ease; transform-origin: left;
+  }
+
+  .health-score {
+    font-family: 'Syne', sans-serif; font-size: 26px; font-weight: 800;
+  }
+
+  .health-risk { font-size: 12px; color: var(--muted); }
+
+  /* BORROW CARD */
+  .borrow-panel { grid-column: 2; }
+
+  .tabs {
+    display: flex; gap: 4px; background: var(--light);
+    padding: 4px; border-radius: 10px; margin-bottom: 24px;
+    width: fit-content;
+  }
+
+  .tab {
+    font-family: 'Syne', sans-serif; font-weight: 600; font-size: 13px;
+    padding: 8px 20px; border-radius: 8px; border: none;
+    background: transparent; cursor: pointer; color: var(--muted);
+    transition: all 0.2s;
+  }
+
+  .tab.active {
+    background: white; color: var(--text);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+
+  .form-group { margin-bottom: 18px; }
+  .form-label { font-size: 12px; font-weight: 600; color: #555; margin-bottom: 7px; display: block; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .input-row {
+    display: flex; align-items: center;
+    border: 1.5px solid var(--border); border-radius: 12px;
+    overflow: hidden; background: var(--off-white);
+    transition: border-color 0.2s;
+  }
+
+  .input-row:focus-within { border-color: var(--blue); }
+
+  .input-row input {
+    flex: 1; border: none; background: transparent;
+    padding: 12px 16px; font-size: 16px; font-weight: 600;
+    font-family: 'Space Mono', monospace; outline: none; color: var(--text);
+    min-width: 0;
+  }
+
+  .input-token {
+    padding: 8px 14px; display: flex; align-items: center; gap: 7px;
+    background: white; border-left: 1px solid var(--border);
+    font-weight: 700; font-size: 13px; white-space: nowrap;
+  }
+
+  .input-token .token-badge {
+    width: 22px; height: 22px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; font-size: 12px;
+  }
+
+  .ltv-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 16px; background: var(--off-white);
+    border-radius: var(--radius-sm); margin-bottom: 18px; border: 1px solid var(--border);
+  }
+
+  .ltv-label { font-size: 13px; color: var(--muted); }
+
+  .ltv-val {
+    font-family: 'Syne', sans-serif; font-weight: 800; font-size: 18px;
+  }
+
+  .ltv-safe { background: linear-gradient(135deg, #52b788, #2a9d8f); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .ltv-warn { background: linear-gradient(135deg, #f4a261, #e9c46a); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .ltv-danger { background: linear-gradient(135deg, #e63946, #c1121f); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+
+  /* METRICS GRID */
+  .metrics-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px; margin-bottom: 20px;
+  }
+
+  .metric-card {
+    background: white; border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 20px;
+    position: relative; overflow: hidden;
+    transition: all 0.2s;
+  }
+
+  .metric-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+
+  .metric-card::before {
+    content: ''; position: absolute;
+    top: 0; left: 0; right: 0; height: 3px;
+  }
+
+  .metric-card.red::before { background: var(--grad-hot); }
+  .metric-card.teal::before { background: var(--grad-cool); }
+  .metric-card.purple::before { background: var(--grad-purple); }
+  .metric-card.orange::before { background: linear-gradient(90deg, var(--orange), var(--yellow)); }
+
+  .metric-icon { font-size: 24px; margin-bottom: 12px; }
+  .metric-label { font-size: 12px; color: var(--muted); font-weight: 500; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .metric-val {
+    font-family: 'Syne', sans-serif; font-size: 28px; font-weight: 800;
+    line-height: 1; margin-bottom: 4px;
+  }
+  .metric-change { font-size: 12px; color: var(--green); font-weight: 500; }
+  .metric-change.neg { color: var(--red); }
+
+  /* TX LOG */
+  .tx-log { max-height: 340px; overflow-y: auto; }
+
+  .tx-item {
+    display: flex; align-items: center; gap: 14px;
+    padding: 12px 0; border-bottom: 1px solid var(--border);
+    animation: fadeUp 0.4s ease both;
+  }
+
+  .tx-item:last-child { border-bottom: none; }
+
+  .tx-badge {
+    width: 36px; height: 36px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; flex-shrink: 0;
+  }
+
+  .tx-info { flex: 1; min-width: 0; }
+  .tx-type { font-weight: 600; font-size: 13px; }
+  .tx-time { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .tx-right { text-align: right; flex-shrink: 0; }
+  .tx-amount { font-family: 'Space Mono', monospace; font-size: 13px; font-weight: 700; }
+
+  .tx-hash {
+    font-family: 'Space Mono', monospace; font-size: 10px;
+    color: var(--blue); text-decoration: none; display: block; margin-top: 2px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px;
+  }
+
+  .tx-hash:hover { text-decoration: underline; }
+
+  /* LIQUIDATION PANEL */
+  .liq-panel {
+    border: 1.5px solid rgba(230,57,70,0.2); border-radius: var(--radius);
+    background: rgba(230,57,70,0.02); padding: 24px;
+  }
+
+  .liq-header {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 20px;
+  }
+
+  .liq-badge {
+    background: linear-gradient(135deg, #e63946, #c1121f);
+    color: white; padding: 4px 12px; border-radius: 20px;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.5px;
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  .liq-positions { display: flex; flex-direction: column; gap: 10px; }
+
+  .liq-pos {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 16px; border-radius: var(--radius-sm);
+    background: white; border: 1px solid var(--border);
+  }
+
+  .liq-pos-addr { font-family: 'Space Mono', monospace; font-size: 11px; color: #555; }
+  .liq-pos-val { font-weight: 700; font-size: 13px; }
+  .liq-pos-ratio { font-family: 'Syne', monospace; font-size: 12px; font-weight: 700; }
+
+  /* VAULT */
+  .vault-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media(max-width: 700px) { .vault-grid { grid-template-columns: 1fr; } }
+
+  .vault-big {
+    font-family: 'Syne', sans-serif; font-size: 48px; font-weight: 800;
+    line-height: 1; margin: 16px 0 6px;
+  }
+
+  .yield-bar-list { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+
+  .yield-bar-item { display: flex; flex-direction: column; gap: 5px; }
+  .yield-bar-label { display: flex; justify-content: space-between; font-size: 13px; }
+  .yield-bar-track { height: 8px; background: var(--light); border-radius: 4px; overflow: hidden; }
+  .yield-bar-fill { height: 100%; border-radius: 4px; transition: width 1.2s ease; }
+
+  /* FOOTER */
+  footer {
+    border-top: 1px solid var(--border); padding: 40px 24px;
+    text-align: center; color: var(--muted); font-size: 13px;
+  }
+
+  footer strong { color: var(--text); }
+
+  /* ALERT BANNER */
+  .alert-banner {
+    display: none; align-items: center; gap: 12px;
+    padding: 12px 20px; border-radius: var(--radius-sm);
+    background: linear-gradient(135deg, rgba(230,57,70,0.06), rgba(244,162,97,0.06));
+    border: 1px solid rgba(230,57,70,0.2);
+    margin-bottom: 16px; animation: fadeUp 0.4s ease;
+  }
+
+  .alert-banner.show { display: flex; }
+  .alert-icon { font-size: 18px; }
+  .alert-text { font-size: 13px; font-weight: 500; }
+
+  /* MODAL */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; z-index: 200;
+    background: rgba(0,0,0,0.35); backdrop-filter: blur(4px);
+    align-items: center; justify-content: center; padding: 20px;
+  }
+
+  .modal-overlay.show { display: flex; }
+
+  .modal {
+    background: white; border-radius: 20px;
+    padding: 32px; width: 100%; max-width: 420px;
+    box-shadow: var(--shadow-lg); animation: fadeUp 0.3s ease;
+  }
+
+  .modal-title {
+    font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800;
+    margin-bottom: 8px;
+  }
+
+  .modal-sub { font-size: 14px; color: var(--muted); margin-bottom: 28px; }
+
+  .wallet-option {
+    display: flex; align-items: center; gap: 14px;
+    padding: 16px; border-radius: var(--radius-sm);
+    border: 1.5px solid var(--border); margin-bottom: 10px;
+    cursor: pointer; transition: all 0.2s; background: var(--off-white);
+  }
+
+  .wallet-option:hover { border-color: var(--blue); background: white; transform: translateX(4px); }
+
+  .wallet-opt-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+  .wallet-opt-name { font-weight: 700; font-size: 15px; }
+  .wallet-opt-sub { font-size: 12px; color: var(--muted); }
+  .wallet-opt-arrow { margin-left: auto; color: var(--muted); font-size: 18px; }
+
+  /* RESPONSIVE */
+  @media (max-width: 768px) {
+    .flow-step:not(:last-child)::after { display: none; }
+    .nav-links { display: none; }
+    .flow-steps { grid-template-columns: repeat(3, 1fr); }
+    .borrow-panel { grid-column: 1; }
+    .vault-grid { grid-template-columns: 1fr; }
+  }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--light); }
+  ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+
+  /* LIVE INDICATOR */
+  .live-pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: rgba(82,183,136,0.1); border: 1px solid rgba(82,183,136,0.3);
+    color: var(--green); padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
+  }
+
+  .live-dot-sm {
+    width: 5px; height: 5px; border-radius: 50%; background: var(--green);
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+
+  /* INTEREST TICKER */
+  .interest-ticker {
+    font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted);
+    display: flex; align-items: center; gap: 6px; margin-top: 4px;
+  }
+
+  .ticker-val { color: var(--orange); font-weight: 700; }
+
+  /* APY badge */
+  .apy-badge {
+    display: inline-block; padding: 2px 8px; border-radius: 5px;
+    font-size: 11px; font-weight: 700; font-family: 'Space Mono', monospace;
+  }
+
+  .apy-green { background: rgba(82,183,136,0.12); color: var(--teal); }
+  .apy-orange { background: rgba(244,162,97,0.12); color: var(--orange); }
+
+  .divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+  .tag {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
+    font-family: 'Space Mono', monospace;
+  }
+
+  .tag-green { background: rgba(82,183,136,0.12); color: var(--green); }
+  .tag-red { background: rgba(230,57,70,0.10); color: var(--red); }
+  .tag-orange { background: rgba(244,162,97,0.12); color: var(--orange); }
+  .tag-blue { background: rgba(69,123,157,0.12); color: var(--blue); }
+
+  /* SECTION DIVIDER */
+  .section-divider {
+    height: 1px; background: var(--border); margin: 0;
+  }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+</style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav>
+  <div class="nav-logo">
+    <div class="dot"></div>
+    <span class="grad-full">BitLend</span>
+  </div>
+  <ul class="nav-links">
+    <li><a href="#dashboard">Dashboard</a></li>
+    <li><a href="#borrow">Borrow</a></li>
+    <li><a href="#liquidations">Liquidations</a></li>
+    <li><a href="#vault">Vault</a></li>
+    <li><a href="#txlog">TX Log</a></li>
+  </ul>
+  <div class="nav-right">
+    <div class="network-badge">OP_NET · BTC L1</div>
+    <button class="btn btn-primary btn-sm" onclick="openWalletModal()">⚡ Connect Wallet</button>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-badge">
+    <span class="live-dot"></span>
+    Live on Bitcoin L1 — Powered by OP_NET
+  </div>
+  <h1>
+    <span class="grad-full">DeFi Lending</span><br>
+    on Bitcoin L1.
+  </h1>
+  <p>
+    Deposit BTC or OP_20 tokens as collateral. Borrow stablecoins in seconds.
+    Real yields, real liquidations — ETH/SOL-style finance, finally on Bitcoin.
+  </p>
+  <div class="hero-cta">
+    <button class="btn btn-hero" onclick="openWalletModal()">⚡ Connect Wallet</button>
+    <button class="btn btn-secondary" onclick="document.getElementById('dashboard').scrollIntoView({behavior:'smooth'})">View Dashboard →</button>
+  </div>
+  <div class="hero-stats">
+    <div class="stat">
+      <div class="stat-val grad-hot" id="tvl">$24.7M</div>
+      <div class="stat-label">Total Value Locked</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val grad-cool" id="totalBorrow">$11.2M</div>
+      <div class="stat-label">Total Borrowed</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val grad-purple" id="totalStakers">1,847</div>
+      <div class="stat-label">Active Stakers</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val" style="background:linear-gradient(90deg,#52b788,#2a9d8f);-webkit-background-clip:text;-webkit-text-fill-color:transparent">8.4%</div>
+      <div class="stat-label">Avg Supply APY</div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ARCHITECTURE FLOW -->
+<section class="section">
+  <div class="section-title">Architecture Flow</div>
+  <div class="section-sub">Six steps from wallet connection to yield distribution</div>
+  <div class="flow-steps">
+    <div class="flow-step" onclick="openWalletModal()">
+      <div class="flow-icon" style="background:linear-gradient(135deg,#e63946,#f4a261)">🔐</div>
+      <h3 class="grad-hot">Connect</h3>
+      <p>OP_NET wallet integration</p>
+    </div>
+    <div class="flow-step" onclick="activateTab('deposit')">
+      <div class="flow-icon" style="background:linear-gradient(135deg,#f4a261,#e9c46a)">₿</div>
+      <h3 class="grad-hot">Deposit</h3>
+      <p>BTC or OP_20 collateral</p>
+    </div>
+    <div class="flow-step" onclick="activateTab('borrow')">
+      <div class="flow-icon" style="background:linear-gradient(135deg,#2a9d8f,#52b788)">💵</div>
+      <h3 class="grad-cool">Borrow</h3>
+      <p>Stablecoins or OP_20 assets</p>
+    </div>
+    <div class="flow-step" onclick="activateTab('repay')">
+      <div class="flow-icon" style="background:linear-gradient(135deg,#457b9d,#2a9d8f)">↩️</div>
+      <h3 class="grad-cool">Repay</h3>
+      <p>Clear debt, release collateral</p>
+    </div>
+    <div class="flow-step" onclick="document.getElementById('liquidations').scrollIntoView({behavior:'smooth'})">
+      <div class="flow-icon" style="background:linear-gradient(135deg,#e63946,#7209b7)">⚡</div>
+      <h3 class="grad-hot">Liquidate</h3>
+      <p>Auto engine below threshold</p>
+    </div>
+    <div class="flow-step" onclick="document.getElementById('vault').scrollIntoView({behavior:'smooth'})">
+      <div class="flow-icon" style="background:linear-gradient(135deg,#7209b7,#4361ee)">🏦</div>
+      <h3 class="grad-purple">Vault</h3>
+      <p>Interest → staker yield</p>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- DASHBOARD -->
+<section class="section" id="dashboard">
+  <div class="section-title"><span class="grad">Live Dashboard</span></div>
+  <div class="section-sub">Real-time balances, borrow limits, and interest accrual</div>
+
+  <!-- METRICS -->
+  <div class="metrics-grid" style="margin-bottom:24px">
+    <div class="metric-card red">
+      <div class="metric-icon">🏦</div>
+      <div class="metric-label">My Collateral</div>
+      <div class="metric-val grad-hot" id="myCollateral">0.000 BTC</div>
+      <div class="metric-change">≈ $0.00</div>
+    </div>
+    <div class="metric-card teal">
+      <div class="metric-icon">💸</div>
+      <div class="metric-label">Outstanding Debt</div>
+      <div class="metric-val grad-cool" id="myDebt">$0.00</div>
+      <div class="metric-change" id="debtChange">— no active loans</div>
+    </div>
+    <div class="metric-card orange">
+      <div class="metric-icon">📈</div>
+      <div class="metric-label">Borrow Limit</div>
+      <div class="metric-val" style="background:linear-gradient(90deg,#f4a261,#e9c46a);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text" id="myLimit">$0.00</div>
+      <div class="metric-change">at 75% max LTV</div>
+    </div>
+    <div class="metric-card purple">
+      <div class="metric-icon">💰</div>
+      <div class="metric-label">Accrued Interest</div>
+      <div class="metric-val grad-purple" id="myInterest">$0.0000</div>
+      <div class="interest-ticker">Ticking @ <span class="ticker-val" id="rateDisplay">5.2% APR</span></div>
+    </div>
+  </div>
+
+  <!-- MAIN DASHBOARD GRID -->
+  <div class="dashboard-grid">
+
+    <!-- WALLET SIDEBAR -->
+    <div class="card wallet-card" id="walletCard">
+      <div class="card-title">
+        Wallet
+        <span class="live-pill"><span class="live-dot-sm"></span>Live</span>
+      </div>
+
+      <div id="notConnected" style="">
+        <div style="text-align:center;padding:32px 0">
+          <div style="font-size:48px;margin-bottom:16px">🔐</div>
+          <div style="font-weight:700;font-size:16px;margin-bottom:8px">Wallet Not Connected</div>
+          <div style="font-size:13px;color:var(--muted);margin-bottom:20px">Connect your OP_NET wallet to start</div>
+          <button class="btn btn-primary" onclick="openWalletModal()" style="width:100%;justify-content:center">⚡ Connect Wallet</button>
+        </div>
+      </div>
+
+      <div id="connectedWallet" style="display:none">
+        <div class="wallet-status">
+          <div class="wallet-avatar">₿</div>
+          <div>
+            <div class="wallet-name">OP_NET Wallet</div>
+            <div class="wallet-addr" id="walletAddr">—</div>
+          </div>
+        </div>
+
+        <div class="balance-list">
+          <div class="balance-item">
+            <div class="balance-left">
+              <div class="token-icon" style="background:linear-gradient(135deg,#f4a261,#e9c46a)">₿</div>
+              <div>
+                <div class="token-name">Bitcoin</div>
+                <div class="token-sub">BTC</div>
+              </div>
+            </div>
+            <div class="balance-amount">
+              <div class="balance-val" id="btcBal">2.1847</div>
+              <div class="balance-usd" id="btcUsd">≈ $215,920</div>
+            </div>
+          </div>
+          <div class="balance-item">
+            <div class="balance-left">
+              <div class="token-icon" style="background:linear-gradient(135deg,#52b788,#2a9d8f)">$</div>
+              <div>
+                <div class="token-name">OP_USDT</div>
+                <div class="token-sub">OP_20 Stablecoin</div>
+              </div>
+            </div>
+            <div class="balance-amount">
+              <div class="balance-val" id="usdtBal">4,820.00</div>
+              <div class="balance-usd">≈ $4,820</div>
+            </div>
+          </div>
+          <div class="balance-item">
+            <div class="balance-left">
+              <div class="token-icon" style="background:linear-gradient(135deg,#7209b7,#4361ee)">◈</div>
+              <div>
+                <div class="token-name">OP_TOKEN</div>
+                <div class="token-sub">OP_20 Governance</div>
+              </div>
+            </div>
+            <div class="balance-amount">
+              <div class="balance-val" id="optkBal">12,400</div>
+              <div class="balance-usd">≈ $1,488</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="health-meter">
+          <div class="health-label">Position Health Factor</div>
+          <div class="health-bar-bg">
+            <div class="health-bar" id="healthBar" style="width:100%"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <div class="health-score grad-cool" id="healthScore">∞</div>
+            <div class="health-risk" id="healthRisk">No active loans</div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <button class="btn btn-secondary" style="width:100%;justify-content:center;font-size:13px" onclick="disconnectWallet()">Disconnect</button>
+      </div>
+    </div>
+
+    <!-- BORROW/DEPOSIT/REPAY PANEL -->
+    <div class="card borrow-panel" id="borrow">
+      <div class="card-title">Actions</div>
+
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab('deposit', this)">Deposit</button>
+        <button class="tab" onclick="switchTab('borrow', this)">Borrow</button>
+        <button class="tab" onclick="switchTab('repay', this)">Repay</button>
+        <button class="tab" onclick="switchTab('withdraw', this)">Withdraw</button>
+      </div>
+
+      <!-- DEPOSIT TAB -->
+      <div id="tab-deposit">
+        <div id="depositAlert" class="alert-banner">
+          <span class="alert-icon">✅</span>
+          <span class="alert-text" id="depositAlertText">Collateral deposited successfully!</span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Collateral Asset</label>
+          <div class="input-row">
+            <input type="number" id="depositAmount" placeholder="0.00" oninput="updateLTV()" />
+            <div class="input-token">
+              <div class="token-badge" style="background:linear-gradient(135deg,#f4a261,#e9c46a)">₿</div>
+              <select style="border:none;background:transparent;font-weight:700;font-size:13px;cursor:pointer;outline:none" id="depositToken" onchange="updateLTV()">
+                <option>BTC</option>
+                <option>OP_USDT</option>
+                <option>OP_TOKEN</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="ltv-row">
+          <span class="ltv-label">💎 Collateral Factor</span>
+          <span class="ltv-val ltv-safe">75% LTV</span>
+        </div>
+        <div class="ltv-row">
+          <span class="ltv-label">🔥 Liquidation Threshold</span>
+          <span class="ltv-val ltv-warn">82.5% LTV</span>
+        </div>
+        <div class="ltv-row">
+          <span class="ltv-label">📊 You Can Borrow Up To</span>
+          <span class="ltv-val ltv-safe" id="borrowableAmt">—</span>
+        </div>
+        <button class="btn btn-teal" style="width:100%;justify-content:center;margin-top:4px" onclick="executeDeposit()">
+          ↓ Deposit Collateral
+        </button>
+        <div style="font-size:12px;color:var(--muted);text-align:center;margin-top:10px">
+          Collateral earns supply APY while locked
+        </div>
+      </div>
+
+      <!-- BORROW TAB -->
+      <div id="tab-borrow" style="display:none">
+        <div id="borrowAlert" class="alert-banner">
+          <span class="alert-icon">💸</span>
+          <span class="alert-text" id="borrowAlertText">Borrow executed!</span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Borrow Asset</label>
+          <div class="input-row">
+            <input type="number" id="borrowAmount" placeholder="0.00" oninput="updateBorrowLTV()" />
+            <div class="input-token">
+              <div class="token-badge" style="background:linear-gradient(135deg,#52b788,#2a9d8f)">$</div>
+              <select style="border:none;background:transparent;font-weight:700;font-size:13px;cursor:pointer;outline:none" id="borrowToken">
+                <option>OP_USDT</option>
+                <option>OP_TOKEN</option>
+                <option>BTC</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="ltv-row">
+          <span class="ltv-label">📊 Current LTV</span>
+          <span class="ltv-val" id="currentLTV">—</span>
+        </div>
+        <div class="ltv-row">
+          <span class="ltv-label">📈 Borrow APR</span>
+          <span class="ltv-val ltv-warn">5.2% APR</span>
+        </div>
+        <div class="ltv-row">
+          <span class="ltv-label">⚡ Available Liquidity</span>
+          <span class="ltv-val ltv-safe">$18.4M</span>
+        </div>
+        <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:4px;background:var(--grad-hot)" onclick="executeBorrow()">
+          💸 Borrow Assets
+        </button>
+      </div>
+
+      <!-- REPAY TAB -->
+      <div id="tab-repay" style="display:none">
+        <div id="repayAlert" class="alert-banner">
+          <span class="alert-icon">✅</span>
+          <span class="alert-text" id="repayAlertText">Repayment confirmed!</span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Repay Amount</label>
+          <div class="input-row">
+            <input type="number" id="repayAmount" placeholder="0.00" />
+            <div class="input-token">
+              <div class="token-badge" style="background:linear-gradient(135deg,#52b788,#2a9d8f)">$</div>
+              <span style="font-weight:700;font-size:13px">OP_USDT</span>
+            </div>
+          </div>
+        </div>
+        <div class="ltv-row">
+          <span class="ltv-label">💳 Outstanding Debt</span>
+          <span class="ltv-val ltv-danger" id="outstandingDebt">$0.00</span>
+        </div>
+        <div class="ltv-row">
+          <span class="ltv-label">⏳ Accrued Interest</span>
+          <span class="ltv-val ltv-warn" id="accruedInterest">$0.0000</span>
+        </div>
+        <button class="btn btn-teal" style="width:100%;justify-content:center;margin-top:4px" onclick="executeRepay()">
+          ↩️ Repay Debt
+        </button>
+        <button class="btn btn-secondary" style="width:100%;justify-content:center;margin-top:10px;font-size:13px" onclick="repayFull()">
+          Repay Full Balance (Max)
+        </button>
+      </div>
+
+      <!-- WITHDRAW TAB -->
+      <div id="tab-withdraw" style="display:none">
+        <div class="form-group">
+          <label class="form-label">Withdraw Collateral</label>
+          <div class="input-row">
+            <input type="number" id="withdrawAmount" placeholder="0.00" />
+            <div class="input-token">
+              <div class="token-badge" style="background:linear-gradient(135deg,#f4a261,#e9c46a)">₿</div>
+              <span style="font-weight:700;font-size:13px">BTC</span>
+            </div>
+          </div>
+        </div>
+        <div class="ltv-row">
+          <span class="ltv-label">🔒 Locked Collateral</span>
+          <span class="ltv-val ltv-safe" id="lockedCollateral">0.000 BTC</span>
+        </div>
+        <div class="ltv-row">
+          <span class="ltv-label">⚠️ Health After Withdraw</span>
+          <span class="ltv-val ltv-warn">—</span>
+        </div>
+        <button class="btn btn-secondary" style="width:100%;justify-content:center;margin-top:4px;font-size:14px" onclick="executeWithdraw()">
+          ↑ Withdraw Collateral
+        </button>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- LIQUIDATION ENGINE -->
+<section class="section" id="liquidations">
+  <div class="section-title"><span class="grad-hot">Liquidation Engine</span></div>
+  <div class="section-sub">Positions at risk — auto-liquidated when collateral ratio drops below 82.5%</div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px" id="liqGrid">
+    <div class="liq-panel">
+      <div class="liq-header">
+        <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:18px">At-Risk Positions</div>
+        <div class="liq-badge">⚡ AUTO ENGINE ACTIVE</div>
+      </div>
+      <div class="liq-positions" id="liqPositions">
+        <div style="text-align:center;padding:32px;color:var(--muted);font-size:14px">
+          <div style="font-size:40px;margin-bottom:12px">✅</div>
+          All positions healthy — no liquidations pending
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Liquidation Parameters</div>
+      <div class="balance-list">
+        <div class="balance-item">
+          <span style="font-size:13px;font-weight:600">Liquidation Threshold</span>
+          <span class="tag tag-red">82.5% LTV</span>
+        </div>
+        <div class="balance-item">
+          <span style="font-size:13px;font-weight:600">Liquidation Bonus</span>
+          <span class="tag tag-orange">+5% Discount</span>
+        </div>
+        <div class="balance-item">
+          <span style="font-size:13px;font-weight:600">Close Factor</span>
+          <span class="tag tag-blue">50% Max</span>
+        </div>
+        <div class="balance-item">
+          <span style="font-size:13px;font-weight:600">Protocol Fee</span>
+          <span class="tag tag-blue">10% of Bonus</span>
+        </div>
+        <div class="balance-item">
+          <span style="font-size:13px;font-weight:600">Oracle Source</span>
+          <span class="tag tag-green">OP_NET Oracle</span>
+        </div>
+        <div class="balance-item">
+          <span style="font-size:13px;font-weight:600">Price Feed Delay</span>
+          <span class="tag tag-green">~3 sec</span>
+        </div>
+      </div>
+      <button class="btn btn-red btn-sm" style="margin-top:16px" onclick="simulateLiquidation()">
+        ⚡ Simulate Liquidation
+      </button>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- REVENUE VAULT -->
+<section class="section" id="vault">
+  <div class="section-title"><span class="grad-purple">Revenue Vault</span></div>
+  <div class="section-sub">Interest fees collected from borrowers — distributed to stakers in real time</div>
+
+  <div class="vault-grid">
+    <div class="card">
+      <div class="card-title">Vault Stats <span class="live-pill"><span class="live-dot-sm"></span>Live</span></div>
+      <div class="vault-big grad-purple" id="vaultTotal">$284,720</div>
+      <div style="color:var(--muted);font-size:13px;margin-bottom:20px">Total Revenue Collected</div>
+      <div class="yield-bar-list">
+        <div class="yield-bar-item">
+          <div class="yield-bar-label">
+            <span>BTC Borrowers</span>
+            <span class="tag tag-orange">$182,440 <span class="apy-orange" style="font-size:10px">64%</span></span>
+          </div>
+          <div class="yield-bar-track">
+            <div class="yield-bar-fill" style="width:64%;background:linear-gradient(90deg,#f4a261,#e9c46a)"></div>
+          </div>
+        </div>
+        <div class="yield-bar-item">
+          <div class="yield-bar-label">
+            <span>OP_USDT Borrowers</span>
+            <span class="tag tag-green">$74,220 <span style="font-size:10px">26%</span></span>
+          </div>
+          <div class="yield-bar-track">
+            <div class="yield-bar-fill" style="width:26%;background:linear-gradient(90deg,#52b788,#2a9d8f)"></div>
+          </div>
+        </div>
+        <div class="yield-bar-item">
+          <div class="yield-bar-label">
+            <span>OP_TOKEN Borrowers</span>
+            <span class="tag tag-blue">$28,060 <span style="font-size:10px">10%</span></span>
+          </div>
+          <div class="yield-bar-track">
+            <div class="yield-bar-fill" style="width:10%;background:linear-gradient(90deg,#457b9d,#4361ee)"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Stake & Earn</div>
+      <div style="display:flex;gap:12px;margin-bottom:20px">
+        <div style="flex:1;padding:16px;background:var(--off-white);border-radius:12px;border:1px solid var(--border)">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px;font-weight:600;text-transform:uppercase">Your Stake</div>
+          <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800" id="myStake" class="grad-purple">0 OPTK</div>
+        </div>
+        <div style="flex:1;padding:16px;background:var(--off-white);border-radius:12px;border:1px solid var(--border)">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px;font-weight:600;text-transform:uppercase">Pending Yield</div>
+          <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800" id="pendingYield" class="grad-cool">$0.00</div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Stake OP_TOKEN</label>
+        <div class="input-row">
+          <input type="number" id="stakeAmount" placeholder="0" />
+          <div class="input-token">
+            <div class="token-badge" style="background:linear-gradient(135deg,#7209b7,#4361ee)">◈</div>
+            <span style="font-weight:700;font-size:13px">OPTK</span>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="executeStake()">Stake →</button>
+        <button class="btn btn-teal" style="flex:1;justify-content:center" onclick="claimYield()">Claim Yield 🎁</button>
+      </div>
+      <div class="divider"></div>
+      <div style="display:flex;justify-content:space-between;font-size:13px">
+        <span style="color:var(--muted)">Current APY</span>
+        <span class="grad-cool" style="font-family:'Syne',sans-serif;font-weight:800;font-size:16px">8.4%</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-top:10px">
+        <span style="color:var(--muted)">Total Staked</span>
+        <span style="font-weight:700">24.7M OPTK</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- TX LOG -->
+<section class="section" id="txlog">
+  <div class="section-title"><span class="grad-cool">Transaction Log</span></div>
+  <div class="section-sub">All on-chain operations — verified on OP_SCAN</div>
+
+  <div class="card">
+    <div class="card-title">
+      Recent Transactions
+      <span class="live-pill"><span class="live-dot-sm"></span>Real-time</span>
+    </div>
+    <div class="tx-log" id="txLog">
+      <!-- populated by JS -->
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:20px;margin-bottom:12px">
+    <span class="grad-full">BitLend</span>
+  </div>
+  <div style="margin-bottom:8px">
+    DeFi Lending on <strong>Bitcoin L1</strong> via <strong>OP_NET</strong> · Transparent · Non-custodial · Permissionless
+  </div>
+  <div>
+    Explore transactions on
+    <a href="https://op-scan.io" target="_blank" style="color:var(--blue);text-decoration:none;font-weight:600">OP_SCAN ↗</a>
+    · Built with OP_20 protocol
+  </div>
+</footer>
+
+<!-- WALLET MODAL -->
+<div class="modal-overlay" id="walletModal">
+  <div class="modal">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <div class="modal-title"><span class="grad">Connect Wallet</span></div>
+      <button onclick="closeWalletModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted)">×</button>
+    </div>
+    <div class="modal-sub" id="modalSub">Connect your OP_NET-compatible Bitcoin wallet</div>
+
+    <!-- Connecting spinner -->
+    <div id="connectingSpinner" style="display:none;text-align:center;padding:32px 0">
+      <div style="width:44px;height:44px;border:3px solid var(--border);border-top-color:#e63946;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 16px"></div>
+      <div style="font-weight:600;font-size:15px" id="connectingLabel">Waiting for wallet…</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:6px">Approve the request in your wallet extension</div>
+    </div>
+
+    <!-- Wallet list -->
+    <div id="walletList">
+      <div class="wallet-option" id="opt-opnet" onclick="connectRealWallet('opnet')">
+        <div class="wallet-opt-icon" style="background:linear-gradient(135deg,#e63946,#f4a261)">⚡</div>
+        <div>
+          <div class="wallet-opt-name">OP_NET Wallet</div>
+          <div class="wallet-opt-sub" id="sub-opnet">Detecting…</div>
+        </div>
+        <span class="wallet-opt-arrow" id="arrow-opnet">›</span>
+      </div>
+
+      <div class="wallet-option" id="opt-unisat" onclick="connectRealWallet('unisat')">
+        <div class="wallet-opt-icon" style="background:linear-gradient(135deg,#f4a261,#e9c46a)">🦊</div>
+        <div>
+          <div class="wallet-opt-name">Unisat Wallet</div>
+          <div class="wallet-opt-sub" id="sub-unisat">Detecting…</div>
+        </div>
+        <span class="wallet-opt-arrow" id="arrow-unisat">›</span>
+      </div>
+
+      <div class="wallet-option" id="opt-xverse" onclick="connectRealWallet('xverse')">
+        <div class="wallet-opt-icon" style="background:linear-gradient(135deg,#7209b7,#4361ee)">✦</div>
+        <div>
+          <div class="wallet-opt-name">Xverse</div>
+          <div class="wallet-opt-sub" id="sub-xverse">Detecting…</div>
+        </div>
+        <span class="wallet-opt-arrow" id="arrow-xverse">›</span>
+      </div>
+
+      <div class="wallet-option" id="opt-okx" onclick="connectRealWallet('okx')">
+        <div class="wallet-opt-icon" style="background:linear-gradient(135deg,#2a9d8f,#52b788)">◉</div>
+        <div>
+          <div class="wallet-opt-name">OKX Wallet</div>
+          <div class="wallet-opt-sub" id="sub-okx">Detecting…</div>
+        </div>
+        <span class="wallet-opt-arrow" id="arrow-okx">›</span>
+      </div>
+    </div>
+
+    <!-- Error message -->
+    <div id="walletError" style="display:none;margin-top:12px;padding:12px 14px;background:rgba(230,57,70,0.06);border:1px solid rgba(230,57,70,0.2);border-radius:10px;font-size:13px;color:#c1121f"></div>
+
+    <div style="font-size:12px;color:var(--muted);text-align:center;margin-top:16px">
+      Non-custodial · Your keys, your Bitcoin · <a href="https://op-net.io" target="_blank" style="color:var(--blue);text-decoration:none">Learn more ↗</a>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== STATE ==========
+const state = {
+  connected: false,
+  walletAddr: '',
+  walletName: '',
+  _provider: null,
+  _walletKey: null,
+  btcBalance: 2.1847,
+  usdtBalance: 4820,
+  optkBalance: 12400,
+  collateralBTC: 0,
+  debtUSDT: 0,
+  interestAccrued: 0,
+  stakedOPTK: 0,
+  pendingYield: 0,
+  btcPrice: 98750,
+  liqPositions: [
+    { addr: 'bc1q4m...x8kz', collateral: '0.8420 BTC', debt: '$62,450', ratio: '88.1%', risk: 'HIGH' },
+    { addr: 'bc1qwf...n2lp', collateral: '1.2100 BTC', debt: '$87,200', ratio: '85.3%', risk: 'MEDIUM' },
+  ],
+  txs: []
+};
+
+// ========== HELPERS ==========
+function randHex(n) {
+  const chars = '0123456789abcdef';
+  return Array.from({length: n}, () => chars[Math.floor(Math.random()*16)]).join('');
+}
+
+function genTxid() { return randHex(64); }
+
+function shortAddr(seed) {
+  const chars = '0123456789abcdefghijklmnopqrstuvwxyz';
+  const a = Array.from({length:4}, () => chars[Math.floor(Math.random()*chars.length)]).join('');
+  const b = Array.from({length:4}, () => chars[Math.floor(Math.random()*chars.length)]).join('');
+  return `bc1q${a}...${b}`;
+}
+
+function fmt(n, dec=2) { return Number(n).toLocaleString('en-US', {minimumFractionDigits:dec, maximumFractionDigits:dec}); }
+
+function timeAgo(date) {
+  const s = Math.floor((Date.now() - date) / 1000);
+  if(s < 60) return `${s}s ago`;
+  if(s < 3600) return `${Math.floor(s/60)}m ago`;
+  return `${Math.floor(s/3600)}h ago`;
+}
+
+function addTx(type, amount, token, emoji, color) {
+  const txid = genTxid();
+  state.txs.unshift({ type, amount, token, emoji, color, txid, time: Date.now() });
+  if(state.txs.length > 20) state.txs.pop();
+  renderTxLog();
+}
+
+// ========== UI UPDATES ==========
+function updateDashboard() {
+  const collateralUSD = state.collateralBTC * state.btcPrice;
+  const borrowLimit = collateralUSD * 0.75;
+  const ltv = state.debtUSDT > 0 && collateralUSD > 0 ? (state.debtUSDT / collateralUSD * 100) : 0;
+
+  document.getElementById('myCollateral').textContent = `${state.collateralBTC.toFixed(4)} BTC`;
+  document.querySelector('#myCollateral').nextElementSibling.textContent = `≈ $${fmt(collateralUSD)}`;
+  document.getElementById('myDebt').textContent = `$${fmt(state.debtUSDT)}`;
+  document.getElementById('myLimit').textContent = `$${fmt(borrowLimit)}`;
+  document.getElementById('myInterest').textContent = `$${state.interestAccrued.toFixed(4)}`;
+  document.getElementById('outstandingDebt').textContent = `$${fmt(state.debtUSDT)}`;
+  document.getElementById('accruedInterest').textContent = `$${state.interestAccrued.toFixed(4)}`;
+  document.getElementById('lockedCollateral').textContent = `${state.collateralBTC.toFixed(4)} BTC`;
+
+  if(state.debtUSDT > 0 && collateralUSD > 0) {
+    const health = (collateralUSD * 0.825) / state.debtUSDT;
+    const pct = Math.min(health / 3 * 100, 100);
+    document.getElementById('healthBar').style.width = pct + '%';
+    document.getElementById('healthScore').textContent = health.toFixed(2);
+    document.getElementById('healthRisk').textContent = health > 2 ? 'Safe' : health > 1.2 ? 'Watch' : '⚠️ At Risk';
+
+    if(health < 1.2) {
+      document.getElementById('healthBar').style.background = 'linear-gradient(90deg, #e63946, #c1121f)';
+    } else if(health < 2) {
+      document.getElementById('healthBar').style.background = 'linear-gradient(90deg, #f4a261, #e9c46a)';
+    } else {
+      document.getElementById('healthBar').style.background = 'linear-gradient(90deg, #52b788, #2a9d8f)';
+    }
+    document.getElementById('debtChange').textContent = `LTV: ${ltv.toFixed(1)}%`;
+  } else {
+    document.getElementById('healthBar').style.width = '100%';
+    document.getElementById('healthScore').textContent = '∞';
+    document.getElementById('healthRisk').textContent = 'No active loans';
+    document.getElementById('debtChange').textContent = '— no active loans';
+  }
+
+  document.getElementById('btcBal').textContent = state.btcBalance.toFixed(4);
+  document.getElementById('btcUsd').textContent = `≈ $${fmt(state.btcBalance * state.btcPrice)}`;
+  document.getElementById('usdtBal').textContent = fmt(state.usdtBalance);
+  document.getElementById('optkBal').textContent = fmt(state.optkBalance, 0);
+  document.getElementById('myStake').textContent = `${fmt(state.stakedOPTK, 0)} OPTK`;
+  document.getElementById('pendingYield').textContent = `$${fmt(state.pendingYield)}`;
+}
+
+function updateLTV() {
+  const amt = parseFloat(document.getElementById('depositAmount').value) || 0;
+  const token = document.getElementById('depositToken').value;
+  let price = token === 'BTC' ? state.btcPrice : token === 'OP_USDT' ? 1 : 0.12;
+  const borrowable = amt * price * 0.75;
+  document.getElementById('borrowableAmt').textContent = borrowable > 0 ? `$${fmt(borrowable)}` : '—';
+}
+
+function updateBorrowLTV() {
+  const amt = parseFloat(document.getElementById('borrowAmount').value) || 0;
+  const collateralUSD = state.collateralBTC * state.btcPrice;
+  if(collateralUSD > 0 && amt > 0) {
+    const ltv = ((state.debtUSDT + amt) / collateralUSD * 100);
+    const el = document.getElementById('currentLTV');
+    el.textContent = ltv.toFixed(1) + '%';
+    el.className = 'ltv-val ' + (ltv > 82.5 ? 'ltv-danger' : ltv > 70 ? 'ltv-warn' : 'ltv-safe');
+  }
+}
+
+function renderTxLog() {
+  const el = document.getElementById('txLog');
+  if(!state.txs.length) {
+    el.innerHTML = `<div style="text-align:center;padding:32px;color:var(--muted);font-size:14px">No transactions yet</div>`;
+    return;
+  }
+  el.innerHTML = state.txs.map(tx => `
+    <div class="tx-item">
+      <div class="tx-badge" style="background:${tx.color}">${tx.emoji}</div>
+      <div class="tx-info">
+        <div class="tx-type">${tx.type}</div>
+        <a href="https://op-scan.io/tx/${tx.txid}" target="_blank" class="tx-hash" title="${tx.txid}">${tx.txid}</a>
+      </div>
+      <div class="tx-right">
+        <div class="tx-amount">${tx.amount} ${tx.token}</div>
+        <div class="tx-time">${timeAgo(tx.time)}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderLiqPositions() {
+  const el = document.getElementById('liqPositions');
+  if(!state.liqPositions.length) {
+    el.innerHTML = `<div style="text-align:center;padding:32px;color:var(--muted);font-size:14px"><div style="font-size:40px;margin-bottom:12px">✅</div>All positions healthy</div>`;
+    return;
+  }
+  el.innerHTML = state.liqPositions.map(p => `
+    <div class="liq-pos">
+      <div style="flex:1">
+        <div class="liq-pos-addr">${p.addr}</div>
+        <div class="liq-pos-val">${p.collateral} → ${p.debt} debt</div>
+      </div>
+      <div style="text-align:right">
+        <div class="liq-pos-ratio" style="color:${p.risk==='HIGH'?'#e63946':'#f4a261'}">${p.ratio} LTV</div>
+        <div class="tag ${p.risk==='HIGH'?'tag-red':'tag-orange'}" style="margin-top:4px;justify-content:flex-end">${p.risk}</div>
+      </div>
+      <button class="btn btn-red btn-sm" onclick="liquidate('${p.addr}')">Liquidate</button>
+    </div>
+  `).join('');
+}
+
+// ========== REAL WALLET INTEGRATION ==========
+
+// Wallet detection registry
+const WALLETS = {
+  opnet: {
+    name: 'OP_NET Wallet',
+    detect: () => window.opnet || window.OP_NET || window.opnetWallet,
+    connect: async () => {
+      const provider = window.opnet || window.OP_NET || window.opnetWallet;
+      // OP_NET provider — request accounts
+      if (provider.requestAccounts) {
+        const accounts = await provider.requestAccounts();
+        return { address: accounts[0], provider };
+      }
+      if (provider.connect) {
+        const res = await provider.connect();
+        return { address: res.address || res.accounts?.[0], provider };
+      }
+      throw new Error('OP_NET wallet found but connection method unavailable');
+    }
+  },
+  unisat: {
+    name: 'Unisat Wallet',
+    detect: () => window.unisat,
+    connect: async () => {
+      const accounts = await window.unisat.requestAccounts();
+      if (!accounts || accounts.length === 0) throw new Error('No accounts returned');
+      return { address: accounts[0], provider: window.unisat };
+    }
+  },
+  xverse: {
+    name: 'Xverse',
+    detect: () => window.XverseProviders?.BitcoinProvider || window.BitcoinProvider || window.xverse,
+    connect: async () => {
+      // Xverse uses SatsConnect protocol
+      if (window.XverseProviders?.BitcoinProvider) {
+        const provider = window.XverseProviders.BitcoinProvider;
+        const res = await provider.connect({ purposes: ['payment', 'ordinals'] });
+        const addr = res?.addresses?.[0]?.address;
+        if (!addr) throw new Error('No address returned from Xverse');
+        return { address: addr, provider };
+      }
+      // Fallback: try window.bitcoin (some Xverse builds)
+      if (window.bitcoin) {
+        const res = await window.bitcoin.connect();
+        return { address: res.address || res.accounts?.[0], provider: window.bitcoin };
+      }
+      throw new Error('Xverse connect method not found');
+    }
+  },
+  okx: {
+    name: 'OKX Wallet',
+    detect: () => window.okxwallet?.bitcoin || window.okxwallet,
+    connect: async () => {
+      const btcProvider = window.okxwallet?.bitcoin;
+      if (btcProvider) {
+        const accounts = await btcProvider.requestAccounts();
+        if (!accounts || accounts.length === 0) throw new Error('No accounts returned');
+        return { address: accounts[0], provider: btcProvider };
+      }
+      // Fallback: EVM-style connect then get BTC address
+      const accounts = await window.okxwallet.request({ method: 'eth_requestAccounts' });
+      return { address: accounts[0], provider: window.okxwallet };
+    }
+  }
+};
+
+function openWalletModal() {
+  document.getElementById('walletModal').classList.add('show');
+  document.getElementById('connectingSpinner').style.display = 'none';
+  document.getElementById('walletList').style.display = 'block';
+  document.getElementById('walletError').style.display = 'none';
+  detectWallets();
+}
+
+function closeWalletModal() {
+  document.getElementById('walletModal').classList.remove('show');
+}
+
+function detectWallets() {
+  // Give extensions a moment to inject
+  setTimeout(() => {
+    Object.entries(WALLETS).forEach(([key, wallet]) => {
+      const installed = !!wallet.detect();
+      const subEl = document.getElementById(`sub-${key}`);
+      const arrowEl = document.getElementById(`arrow-${key}`);
+      const optEl = document.getElementById(`opt-${key}`);
+      if (installed) {
+        subEl.textContent = '✅ Detected — click to connect';
+        subEl.style.color = '#2a9d8f';
+        arrowEl.style.color = '#2a9d8f';
+        optEl.style.borderColor = 'rgba(42,157,143,0.3)';
+        optEl.style.background = 'rgba(42,157,143,0.03)';
+      } else {
+        subEl.textContent = 'Not installed — click to install';
+        subEl.style.color = '#aaa';
+        optEl.style.opacity = '0.65';
+      }
+    });
+  }, 200);
+}
+
+async function connectRealWallet(walletKey) {
+  const wallet = WALLETS[walletKey];
+  const isInstalled = !!wallet.detect();
+
+  // Not installed → open install page
+  if (!isInstalled) {
+    const installUrls = {
+      opnet: 'https://op-net.io',
+      unisat: 'https://unisat.io/download',
+      xverse: 'https://www.xverse.app/download',
+      okx: 'https://www.okx.com/web3'
+    };
+    if (confirm(`${wallet.name} is not installed.\n\nOpen the install page?`)) {
+      window.open(installUrls[walletKey], '_blank');
+    }
+    return;
+  }
+
+  // Show spinner
+  document.getElementById('walletList').style.display = 'none';
+  document.getElementById('walletError').style.display = 'none';
+  document.getElementById('connectingSpinner').style.display = 'block';
+  document.getElementById('connectingLabel').textContent = `Connecting to ${wallet.name}…`;
+
+  try {
+    const { address, provider } = await wallet.connect();
+    state._provider = provider;
+    state._walletKey = walletKey;
+    onWalletConnected(address, wallet.name);
+  } catch (err) {
+    document.getElementById('connectingSpinner').style.display = 'none';
+    document.getElementById('walletList').style.display = 'block';
+    const errEl = document.getElementById('walletError');
+    errEl.style.display = 'block';
+    // User-friendly error messages
+    let msg = err.message || 'Connection failed';
+    if (msg.includes('User rejected') || msg.includes('user rejected') || msg.includes('cancelled')) {
+      msg = '🚫 You rejected the connection request in your wallet.';
+    } else if (msg.includes('Already processing')) {
+      msg = '⏳ A connection request is already pending. Check your wallet extension.';
+    }
+    errEl.textContent = msg;
+    console.error(`[BitLend] ${wallet.name} connection error:`, err);
+  }
+}
+
+function onWalletConnected(address, walletName) {
+  closeWalletModal();
+
+  // Truncate address for display: show first 8 + last 6
+  const shortAddress = address.length > 16
+    ? `${address.slice(0, 8)}…${address.slice(-6)}`
+    : address;
+
+  state.connected = true;
+  state.walletAddr = address;
+  state.walletName = walletName;
+
+  document.getElementById('notConnected').style.display = 'none';
+  document.getElementById('connectedWallet').style.display = 'block';
+  document.getElementById('walletAddr').textContent = shortAddress;
+  document.getElementById('walletAddr').title = address; // full addr on hover
+
+  addTx(`Connected via ${walletName}`, shortAddress, '', '🔐', 'linear-gradient(135deg,#e63946,#f4a261)');
+  updateDashboard();
+
+  // Seed demo protocol history
+  setTimeout(() => addTx('Supply BTC', '0.5000', 'BTC', '₿', 'linear-gradient(135deg,#f4a261,#e9c46a)'), 800);
+  setTimeout(() => addTx('Borrow OP_USDT', '32,500', 'USDT', '$', 'linear-gradient(135deg,#52b788,#2a9d8f)'), 1600);
+
+  // Try to fetch real BTC balance (Unisat supports this)
+  fetchRealBalance();
+}
+
+async function fetchRealBalance() {
+  try {
+    if (state._walletKey === 'unisat' && window.unisat?.getBalance) {
+      const bal = await window.unisat.getBalance();
+      // bal.confirmed is in satoshis
+      if (bal && bal.confirmed !== undefined) {
+        state.btcBalance = bal.confirmed / 1e8;
+        updateDashboard();
+      }
+    } else if (state._walletKey === 'okx' && window.okxwallet?.bitcoin?.getBalance) {
+      const bal = await window.okxwallet.bitcoin.getBalance();
+      if (bal && bal.confirmed !== undefined) {
+        state.btcBalance = bal.confirmed / 1e8;
+        updateDashboard();
+      }
+    }
+    // OP_NET and Xverse don't expose a simple getBalance on the provider directly —
+    // in production you'd query OP_NET RPC with the connected address.
+  } catch (e) {
+    console.warn('[BitLend] Could not fetch real balance:', e);
+  }
+}
+
+function disconnectWallet() {
+  const prevKey = state._walletKey;
+  state.connected = false;
+  state._provider = null;
+  state._walletKey = null;
+  document.getElementById('connectedWallet').style.display = 'none';
+  document.getElementById('notConnected').style.display = 'block';
+
+  // Some wallets support programmatic disconnect
+  try {
+    if (prevKey === 'unisat' && window.unisat?.disconnect) window.unisat.disconnect();
+  } catch(e) {}
+}
+
+// ========== ACTIONS ==========
+function showAlert(id, text) {
+  const el = document.getElementById(id);
+  document.getElementById(id + 'Text').textContent = text;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 4000);
+}
+
+function executeDeposit() {
+  if(!state.connected) { openWalletModal(); return; }
+  const amt = parseFloat(document.getElementById('depositAmount').value) || 0;
+  if(amt <= 0) { alert('Enter an amount'); return; }
+  const token = document.getElementById('depositToken').value;
+  if(token === 'BTC') {
+    if(amt > state.btcBalance) { alert('Insufficient BTC balance'); return; }
+    state.btcBalance -= amt;
+    state.collateralBTC += amt;
+  }
+  document.getElementById('depositAmount').value = '';
+  addTx('Deposit Collateral', fmt(amt, 4), token, '↓', 'linear-gradient(135deg,#52b788,#2a9d8f)');
+  showAlert('depositAlert', `Deposited ${fmt(amt,4)} ${token} as collateral!`);
+  updateDashboard();
+  updateLTV();
+}
+
+function executeBorrow() {
+  if(!state.connected) { openWalletModal(); return; }
+  const amt = parseFloat(document.getElementById('borrowAmount').value) || 0;
+  if(amt <= 0) { alert('Enter an amount'); return; }
+  const collateralUSD = state.collateralBTC * state.btcPrice;
+  const maxBorrow = collateralUSD * 0.75;
+  if(state.debtUSDT + amt > maxBorrow) {
+    alert(`Borrow limit exceeded! Max: $${fmt(maxBorrow)}`); return;
+  }
+  state.debtUSDT += amt;
+  state.usdtBalance += amt;
+  document.getElementById('borrowAmount').value = '';
+  addTx('Borrow OP_USDT', fmt(amt), 'USDT', '💸', 'linear-gradient(135deg,#f4a261,#e9c46a)');
+  showAlert('borrowAlert', `Borrowed $${fmt(amt)} OP_USDT successfully!`);
+  updateDashboard();
+}
+
+function executeRepay() {
+  if(!state.connected) { openWalletModal(); return; }
+  const amt = parseFloat(document.getElementById('repayAmount').value) || 0;
+  if(amt <= 0) { alert('Enter amount'); return; }
+  const total = state.debtUSDT + state.interestAccrued;
+  if(amt > state.usdtBalance) { alert('Insufficient USDT balance'); return; }
+  const actual = Math.min(amt, total);
+  state.usdtBalance -= actual;
+  if(actual >= state.interestAccrued) { state.debtUSDT -= (actual - state.interestAccrued); state.interestAccrued = 0; }
+  else { state.interestAccrued -= actual; }
+  if(state.debtUSDT < 0) state.debtUSDT = 0;
+  document.getElementById('repayAmount').value = '';
+  addTx('Repay Debt', fmt(actual), 'USDT', '↩️', 'linear-gradient(135deg,#2a9d8f,#457b9d)');
+  showAlert('repayAlert', `Repaid $${fmt(actual)} — position updated!`);
+  updateDashboard();
+}
+
+function repayFull() {
+  const total = state.debtUSDT + state.interestAccrued;
+  document.getElementById('repayAmount').value = total.toFixed(2);
+  executeRepay();
+}
+
+function executeWithdraw() {
+  if(!state.connected) { openWalletModal(); return; }
+  const amt = parseFloat(document.getElementById('withdrawAmount').value) || 0;
+  if(amt <= 0 || amt > state.collateralBTC) { alert('Invalid amount'); return; }
+  const remaining = (state.collateralBTC - amt) * state.btcPrice;
+  if(state.debtUSDT > 0 && state.debtUSDT > remaining * 0.75) { alert('Withdrawal would make position undercollateralized'); return; }
+  state.collateralBTC -= amt;
+  state.btcBalance += amt;
+  document.getElementById('withdrawAmount').value = '';
+  addTx('Withdraw Collateral', fmt(amt,4), 'BTC', '↑', 'linear-gradient(135deg,#7209b7,#4361ee)');
+  updateDashboard();
+}
+
+function executeStake() {
+  if(!state.connected) { openWalletModal(); return; }
+  const amt = parseFloat(document.getElementById('stakeAmount').value) || 0;
+  if(amt <= 0 || amt > state.optkBalance) { alert('Invalid stake amount'); return; }
+  state.optkBalance -= amt;
+  state.stakedOPTK += amt;
+  document.getElementById('stakeAmount').value = '';
+  addTx('Stake OP_TOKEN', fmt(amt,0), 'OPTK', '◈', 'linear-gradient(135deg,#7209b7,#4361ee)');
+  updateDashboard();
+}
+
+function claimYield() {
+  if(!state.connected) { openWalletModal(); return; }
+  if(state.pendingYield <= 0) { alert('No yield to claim yet'); return; }
+  const y = state.pendingYield;
+  state.usdtBalance += y;
+  state.pendingYield = 0;
+  addTx('Claim Vault Yield', fmt(y), 'USDT', '🎁', 'linear-gradient(135deg,#52b788,#e9c46a)');
+  updateDashboard();
+}
+
+function liquidate(addr) {
+  const idx = state.liqPositions.findIndex(p => p.addr === addr);
+  if(idx > -1) {
+    state.liqPositions.splice(idx, 1);
+    addTx(`Liquidate ${addr}`, '5%', 'Bonus', '⚡', 'linear-gradient(135deg,#e63946,#7209b7)');
+    renderLiqPositions();
+  }
+}
+
+function simulateLiquidation() {
+  state.liqPositions.push({
+    addr: `bc1q${randHex(4)}...${randHex(4)}`,
+    collateral: `${(Math.random()*2+0.5).toFixed(4)} BTC`,
+    debt: `$${fmt(Math.random()*50000+20000)}`,
+    ratio: `${(83 + Math.random()*6).toFixed(1)}%`,
+    risk: Math.random() > 0.5 ? 'HIGH' : 'MEDIUM'
+  });
+  renderLiqPositions();
+}
+
+// ========== TABS ==========
+function switchTab(name, btn) {
+  ['deposit','borrow','repay','withdraw'].forEach(t => {
+    document.getElementById(`tab-${t}`).style.display = t === name ? 'block' : 'none';
+  });
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function activateTab(name) {
+  document.getElementById('borrow').scrollIntoView({behavior:'smooth'});
+  setTimeout(() => {
+    const tabs = document.querySelectorAll('.tab');
+    const idx = ['deposit','borrow','repay','withdraw'].indexOf(name);
+    if(idx > -1) switchTab(name, tabs[idx]);
+  }, 500);
+}
+
+// ========== LIVE TICKERS ==========
+let interestInterval, btcPriceInterval, txInterval, vaultInterval;
+
+function startLiveTickers() {
+  // Interest accrual
+  interestInterval = setInterval(() => {
+    if(state.debtUSDT > 0) {
+      state.interestAccrued += state.debtUSDT * 0.052 / 365 / 86400 * 3;
+      updateDashboard();
+    }
+  }, 3000);
+
+  // BTC price drift
+  btcPriceInterval = setInterval(() => {
+    state.btcPrice *= (1 + (Math.random() - 0.5) * 0.002);
+    if(state.connected) updateDashboard();
+    // update hero TVL
+    const tvl = (state.btcPrice * 247.3 / 1000).toFixed(1);
+    document.getElementById('tvl').textContent = `$${tvl}M`;
+  }, 5000);
+
+  // Vault yield accumulation
+  vaultInterval = setInterval(() => {
+    const vaultBase = 284720;
+    const drift = Math.floor(Math.random() * 120);
+    document.getElementById('vaultTotal').textContent = `$${fmt(vaultBase + drift * Math.floor(Date.now()/5000) % 5000)}`;
+    if(state.stakedOPTK > 0) {
+      state.pendingYield += state.stakedOPTK * 0.12 * 0.084 / 365 / 24;
+      updateDashboard();
+    }
+  }, 4000);
+
+  // Background global transactions
+  txInterval = setInterval(() => {
+    const types = [
+      { type:'Deposit BTC', amt:()=>`${(Math.random()*2+0.1).toFixed(4)}`, token:'BTC', e:'₿', c:'linear-gradient(135deg,#f4a261,#e9c46a)' },
+      { type:'Borrow USDT', amt:()=>`${fmt(Math.random()*80000+5000)}`, token:'USDT', e:'💸', c:'linear-gradient(135deg,#52b788,#2a9d8f)' },
+      { type:'Repay Debt', amt:()=>`${fmt(Math.random()*20000+1000)}`, token:'USDT', e:'↩️', c:'linear-gradient(135deg,#457b9d,#4361ee)' },
+      { type:'Claim Yield', amt:()=>`${fmt(Math.random()*500+50)}`, token:'USDT', e:'🎁', c:'linear-gradient(135deg,#7209b7,#4361ee)' },
+    ];
+    const t = types[Math.floor(Math.random()*types.length)];
+    addTx(t.type, t.amt(), t.token, t.e, t.c);
+  }, 8000);
+}
+
+// ========== INIT ==========
+window.addEventListener('DOMContentLoaded', () => {
+  renderTxLog();
+  renderLiqPositions();
+  startLiveTickers();
+
+  // Pre-populate tx log with some history
+  const history = [
+    { type:'Protocol Launch', amount:'—', token:'OP_NET', emoji:'🚀', color:'linear-gradient(135deg,#e63946,#7209b7)' },
+    { type:'Borrow OP_USDT', amount:'125,000', token:'USDT', emoji:'💸', color:'linear-gradient(135deg,#52b788,#2a9d8f)' },
+    { type:'Deposit BTC', amount:'4.2000', token:'BTC', emoji:'₿', color:'linear-gradient(135deg,#f4a261,#e9c46a)' },
+    { type:'Stake OPTK', amount:'50,000', token:'OPTK', emoji:'◈', color:'linear-gradient(135deg,#7209b7,#4361ee)' },
+    { type:'Liquidation', amount:'1.4200', token:'BTC', emoji:'⚡', color:'linear-gradient(135deg,#e63946,#c1121f)' },
+    { type:'Claim Yield', amount:'2,840', token:'USDT', emoji:'🎁', color:'linear-gradient(135deg,#2a9d8f,#52b788)' },
+  ];
+  history.forEach((tx, i) => {
+    state.txs.push({ ...tx, txid: genTxid(), time: Date.now() - (i+1)*120000 });
+  });
+  renderTxLog();
+
+  // Close modal on overlay click
+  document.getElementById('walletModal').addEventListener('click', function(e) {
+    if(e.target === this) closeWalletModal();
+  });
+
+  // Animate numbers in hero
+  animateCount('totalBorrow', 11.2, 'M', '$');
+  animateCount('totalStakers', 1847, '', '');
+});
+
+function animateCount(id, target, suffix, prefix) {
+  const el = document.getElementById(id);
+  let start = 0;
+  const step = target / 60;
+  const timer = setInterval(() => {
+    start = Math.min(start + step, target);
+    if(suffix === 'M') el.textContent = `${prefix}${start.toFixed(1)}${suffix}`;
+    else el.textContent = `${prefix}${Math.floor(start)}${suffix}`;
+    if(start >= target) clearInterval(timer);
+  }, 16);
+}
+</script>
+</body>
+</html>
